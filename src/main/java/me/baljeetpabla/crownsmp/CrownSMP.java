@@ -2,12 +2,8 @@ package me.baljeetpabla.crownsmp;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.attribute.AttributeInstance;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
+import org.bukkit.command.PluginCommand;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -16,7 +12,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-public final class CrownSMP extends JavaPlugin implements CommandExecutor, TabCompleter {
+public final class CrownSMP extends JavaPlugin implements org.bukkit.command.CommandExecutor, org.bukkit.command.TabCompleter {
 
     private UUID crownedUuid;
     private CrownManager crownManager;
@@ -31,7 +27,7 @@ public final class CrownSMP extends JavaPlugin implements CommandExecutor, TabCo
         CrownListener listener = new CrownListener(this, crownManager);
         getServer().getPluginManager().registerEvents(listener, this);
 
-        Command crownCommand = getCommand("crown");
+        PluginCommand crownCommand = getCommand("crown");
         if (crownCommand != null) {
             crownCommand.setExecutor(this);
             crownCommand.setTabCompleter(this);
@@ -154,7 +150,7 @@ public final class CrownSMP extends JavaPlugin implements CommandExecutor, TabCo
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+    public boolean onCommand(CommandSender sender, org.bukkit.command.Command command, String label, String[] args) {
         if (!sender.hasPermission("crownsmp.admin")) {
             sender.sendMessage(color("&cYou don't have permission to use this command."));
             return true;
@@ -219,7 +215,7 @@ public final class CrownSMP extends JavaPlugin implements CommandExecutor, TabCo
     }
 
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+    public List<String> onTabComplete(CommandSender sender, org.bukkit.command.Command command, String alias, String[] args) {
         if (args.length == 1) {
             List<String> values = List.of("set", "give", "remove", "info", "reload", "help");
             String input = args[0].toLowerCase(Locale.ROOT);
