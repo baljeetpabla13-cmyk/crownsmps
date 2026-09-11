@@ -1,6 +1,7 @@
 package me.baljeetpabla.crownsmp;
 
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.attribute.Attribute;
@@ -12,7 +13,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.NamespacedKey;
 
 import java.util.Map;
 import java.util.UUID;
@@ -22,6 +22,7 @@ public final class CrownManager {
 
     private final CrownSMP plugin;
     private final NamespacedKey crownItemKey;
+    private final NamespacedKey crownBuffMarkerKey;
     private final Map<UUID, Integer> comboHits = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastHitAt = new ConcurrentHashMap<>();
     private final Map<UUID, Long> rageCooldownUntil = new ConcurrentHashMap<>();
@@ -52,6 +53,7 @@ public final class CrownManager {
     public CrownManager(CrownSMP plugin) {
         this.plugin = plugin;
         this.crownItemKey = new NamespacedKey(plugin, "crown_item");
+        this.crownBuffMarkerKey = new NamespacedKey(plugin, "crown_buffs");
         reloadValues();
     }
 
@@ -61,10 +63,10 @@ public final class CrownManager {
         speedAmplifier = plugin.getConfig().getInt("crown.speed-amplifier", 1);
         knockbackResistance = plugin.getConfig().getDouble("crown.knockback-resistance", 1.0);
 
-        rageHitsRequired = plugin.getConfig().getInt("rage.hits-required", 5);
-        comboTimeoutMs = (long) (plugin.getConfig().getDouble("rage.combo-timeout-seconds", 1.75) * 1000L);
-        rageDurationMs = (long) (plugin.getConfig().getDouble("rage.duration-seconds", 8.0) * 1000L);
-        rageCooldownMs = (long) (plugin.getConfig().getDouble("rage.cooldown-seconds", 12.0) * 1000L);
+        rageHitsRequired = Math.max(1, plugin.getConfig().getInt("rage.hits-required", 5));
+        comboTimeoutMs = Math.max(100L, (long) (plugin.getConfig().getDouble("rage.combo-timeout-seconds", 1.75) * 1000L));
+        rageDurationMs = Math.max(100L, (long) (plugin.getConfig().getDouble("rage.duration-seconds", 8.0) * 1000L));
+        rageCooldownMs = Math.max(0L, (long) (plugin.getConfig().getDouble("rage.cooldown-seconds", 12.0) * 1000L));
         rageStrengthAmplifier = plugin.getConfig().getInt("rage.strength-amplifier", 2);
         rageSpeedAmplifier = plugin.getConfig().getInt("rage.speed-amplifier", 2);
         rageResistanceAmplifier = plugin.getConfig().getInt("rage.resistance-amplifier", 2);
@@ -72,10 +74,10 @@ public final class CrownManager {
         bloodlustRegenerationAmplifier = plugin.getConfig().getInt("bloodlust.regeneration-amplifier", 1);
         bloodlustDurationTicks = Math.max(1L, (long) (plugin.getConfig().getDouble("bloodlust.duration-seconds", 5.0) * 20L));
 
-        executionCooldownMs = (long) (plugin.getConfig().getDouble("execution.cooldown-seconds", 20.0) * 1000L);
-        executionRange = plugin.getConfig().getDouble("execution.range", 4.0);
-        executionHealthPercent = plugin.getConfig().getDouble("execution.target-max-health-percent", 0.20);
-        executionDamage = plugin.getConfig().getDouble("execution.damage", 10.0);
+        executionCooldownMs = Math.max(0L, (long) (plugin.getConfig().getDouble("execution.cooldown-seconds", 20.0) * 1000L));
+        executionRange = Math.max(0.1, plugin.getConfig().getDouble("execution.range", 4.0));
+        executionHealthPercent = Math.max(0.0, Math.min(1.0, plugin.getConfig().getDouble("execution.target-max-health-percent", 0.20)));
+        executionDamage = Math.max(0.0, plugin.getConfig().getDouble("execution.damage", 10.0));
     }
 
     public void applyBaseBuffs(Player player) {
@@ -92,6 +94,7 @@ public final class CrownManager {
             knockback.setBaseValue(knockbackResistance);
         }
 
+        player.getPersistentDataContainer().set(crownBuffMarkerKey, PersistentDataType.BYTE, (byte) 1);
         player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, Integer.MAX_VALUE, resistanceAmplifier, false, false, true), true);
         player.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, Integer.MAX_VALUE, speedAmplifier, false, false, true), true);
         player.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, Integer.MAX_VALUE, 0, false, false, true), true);
@@ -99,6 +102,7 @@ public final class CrownManager {
 
     public void removeCrownBuffs(Player player) {
         removeAllCrownEffects(player);
+        player.getPersistentDataContainer().remove(crownBuffMarkerKey);
         comboHits.remove(player.getUniqueId());
         lastHitAt.remove(player.getUniqueId());
         rageUntil.remove(player.getUniqueId());
@@ -119,6 +123,12 @@ public final class CrownManager {
         }
     }
 
+    public void cleanUpMarkedPlayer(Player player) {
+        if (!player.getPersistentDataContainer().has(crownBuffMarkerKey, PersistentDataType.BYTE)) return;
+        removeCrownBuffs(player);
+        removeCrownItem(player);
+    }
+
     private void removeAllCrownEffects(Player player) {
         player.removePotionEffect(PotionEffectType.RESISTANCE);
         player.removePotionEffect(PotionEffectType.SPEED);
@@ -129,10 +139,15 @@ public final class CrownManager {
 
     public void giveCrownItem(Player player) {
         removeCrownItem(player);
+        ItemStack crown = createCrownItem();
         EntityEquipment equipment = player.getEquipment();
-        if (equipment == null) return;
+        if (equipment != null && equipment.getHelmet() == null) {
+            equipment.setHelmet(crown);
+        } else {
+            player.getInventory().addItem(crown).values().forEach(item ->
+                    player.getWorld().dropItemNaturally(player.getLocation(), item));
+        }
 
-        equipment.setHelmet(createCrownItem());
         player.getWorld().spawnParticle(Particle.GLOW, player.getLocation().add(0, 2.0, 0), 20, 0.4, 0.2, 0.4, 0.02);
         player.getWorld().playSound(player.getLocation(), Sound.ITEM_GOAT_HORN_SOUND_0, 1.0f, 1.25f);
     }
@@ -156,18 +171,26 @@ public final class CrownManager {
 
     public void updateCrownItem(Player player) {
         EntityEquipment equipment = player.getEquipment();
-        if (equipment == null) return;
-        if (!isCrownItem(equipment.getHelmet())) {
-            equipment.setHelmet(createCrownItem());
+        if (equipment != null && isCrownItem(equipment.getHelmet())) return;
+
+        for (ItemStack item : player.getInventory().getContents()) {
+            if (isCrownItem(item)) return;
         }
+
+        giveCrownItem(player);
     }
 
     public void removeCrownItem(Player player) {
         EntityEquipment equipment = player.getEquipment();
-        if (equipment == null) return;
-        ItemStack helmet = equipment.getHelmet();
-        if (isCrownItem(helmet)) {
+        if (equipment != null && isCrownItem(equipment.getHelmet())) {
             equipment.setHelmet(null);
+        }
+
+        ItemStack[] contents = player.getInventory().getContents();
+        for (int slot = 0; slot < contents.length; slot++) {
+            if (isCrownItem(contents[slot])) {
+                player.getInventory().setItem(slot, null);
+            }
         }
     }
 
@@ -215,11 +238,12 @@ public final class CrownManager {
         comboHits.put(uuid, 0);
         lastHitAt.put(uuid, now);
         rageUntil.put(uuid, now + rageDurationMs);
-        rageCooldownUntil.put(uuid, now + rageCooldownMs + rageDurationMs);
+        rageCooldownUntil.put(uuid, now + rageDurationMs + rageCooldownMs);
 
-        crown.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, (int) Math.max(1, rageDurationMs / 50L), rageStrengthAmplifier, false, true, true), true);
-        crown.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, (int) Math.max(1, rageDurationMs / 50L), rageSpeedAmplifier, false, true, true), true);
-        crown.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, (int) Math.max(1, rageDurationMs / 50L), rageResistanceAmplifier, false, true, true), true);
+        int ticks = (int) Math.min(Integer.MAX_VALUE, Math.max(1L, rageDurationMs / 50L));
+        crown.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, ticks, rageStrengthAmplifier, false, true, true), true);
+        crown.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, ticks, rageSpeedAmplifier, false, true, true), true);
+        crown.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, ticks, rageResistanceAmplifier, false, true, true), true);
 
         crown.getWorld().spawnParticle(Particle.FLAME, crown.getLocation().add(0, 1.0, 0), 45, 0.7, 1.0, 0.7, 0.03);
         crown.getWorld().spawnParticle(Particle.CRIT, crown.getLocation().add(0, 1.0, 0), 35, 0.6, 0.8, 0.6, 0.25);
@@ -227,9 +251,10 @@ public final class CrownManager {
         plugin.send(crown, "rage-active");
 
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            if (!plugin.isCrowned(crown)) return;
-            removeRageEffects(crown);
-        }, Math.max(1L, rageDurationMs / 50L));
+            if (plugin.isCrowned(crown)) {
+                removeRageEffects(crown);
+            }
+        }, ticks);
     }
 
     private void removeRageEffects(Player crown) {
@@ -250,15 +275,13 @@ public final class CrownManager {
     }
 
     public boolean tryExecution(Player crown, Player target) {
-        if (!plugin.isCrowned(crown) || target == crown) return false;
-        if (!crown.isSneaking()) return false;
+        if (!plugin.isCrowned(crown) || target == crown || !crown.isSneaking()) return false;
         if (!crown.getWorld().equals(target.getWorld())) return false;
         if (crown.getLocation().distanceSquared(target.getLocation()) > executionRange * executionRange) return false;
         if (target.isDead() || target.getHealth() <= 0) return false;
 
-        double maxTargetHealth = target.getAttribute(Attribute.MAX_HEALTH) != null
-                ? target.getAttribute(Attribute.MAX_HEALTH).getValue()
-                : 20.0;
+        AttributeInstance targetHealth = target.getAttribute(Attribute.MAX_HEALTH);
+        double maxTargetHealth = targetHealth != null ? targetHealth.getValue() : 20.0;
         if (target.getHealth() > maxTargetHealth * executionHealthPercent) return false;
         if (isExecutionOnCooldown(crown)) return false;
 
@@ -279,7 +302,7 @@ public final class CrownManager {
 
     public void onKill(Player crown) {
         crown.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION,
-                (int) bloodlustDurationTicks,
+                (int) Math.min(Integer.MAX_VALUE, bloodlustDurationTicks),
                 bloodlustRegenerationAmplifier,
                 false, true, true), true);
 
