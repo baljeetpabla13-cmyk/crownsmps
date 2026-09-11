@@ -46,9 +46,18 @@ public final class CrownListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onExecution(PlayerInteractEntityEvent event) {
-        Player crown = event.getPlayer();
         if (!(event.getRightClicked() instanceof Player target)) return;
-        manager.tryExecution(crown, target);
+        manager.tryExecution(event.getPlayer(), target);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerDeath(PlayerDeathEvent event) {
+        Player dead = event.getEntity();
+        Player killer = dead.getKiller();
+
+        if (killer != null && killer != dead && plugin.isCrowned(killer)) {
+            manager.onKill(killer);
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -58,16 +67,13 @@ public final class CrownListener implements Listener {
 
         Player killer = dead.getKiller();
         manager.removeCrownItem(dead);
+        event.getDrops().removeIf(manager::isCrownItem);
 
         // The Crown transfers only when another player personally kills the Crowned player.
-        // This prevents the Crown from disappearing due to accidental/environmental deaths.
         if (killer != null && killer != dead) {
             plugin.setCrown(killer);
             plugin.send(dead, "crown-lost");
             plugin.send(killer, "crown-won");
-
-            // Do not leave a duplicate Crown item in the death drops.
-            event.getDrops().removeIf(manager::isCrownItem);
         } else {
             plugin.removeCrown();
         }
@@ -79,6 +85,8 @@ public final class CrownListener implements Listener {
         if (plugin.isCrowned(player)) {
             manager.applyBaseBuffs(player);
             manager.updateCrownItem(player);
+        } else {
+            manager.cleanUpMarkedPlayer(player);
         }
     }
 }
