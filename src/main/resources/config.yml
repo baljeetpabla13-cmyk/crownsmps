@@ -12,7 +12,9 @@ rage:
   combo-timeout-seconds: 1.75
   duration-seconds: 8
   cooldown-seconds: 12
-  strength-amplifier: 2 # Strength III
+  strength-amplifier: 2   # Strength III
+  speed-amplifier: 2      # Speed III while Rage is active
+  resistance-amplifier: 2 # Resistance III while Rage is active
 
 bloodlust:
   regeneration-amplifier: 1 # Regeneration II
