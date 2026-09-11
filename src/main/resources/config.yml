@@ -1,0 +1,39 @@
+# CrownSMP balancing configuration
+# Durations are in seconds unless noted.
+
+crown:
+  max-health: 40.0
+  resistance-amplifier: 1 # Resistance II
+  speed-amplifier: 1      # Speed II
+  knockback-resistance: 1.0
+
+rage:
+  hits-required: 5
+  combo-timeout-seconds: 1.75
+  duration-seconds: 8
+  cooldown-seconds: 12
+  strength-amplifier: 2 # Strength III
+
+bloodlust:
+  regeneration-amplifier: 1 # Regeneration II
+  duration-seconds: 5
+
+execution:
+  cooldown-seconds: 20
+  range: 4.0
+  target-max-health-percent: 0.20
+  damage: 10.0
+
+messages:
+  prefix: "&6&lCROWN &8» &r"
+  crown-set: "&a%player% is now the Crowned player."
+  crown-removed: "&eThe Crown has been removed from %player%."
+  crown-given: "&aYou are now the Crowned player."
+  crown-lost: "&cYou lost the Crown!"
+  crown-won: "&6You claimed the Crown!"
+  rage-ready: "&6&lCROWN RAGE &r&7is ready!"
+  rage-active: "&c&lCROWN RAGE &r&7activated!"
+  bloodlust: "&4&lBLOODLUST &r&7activated!"
+  execution-ready: "&e&lEXECUTION &r&7available on low-health targets."
+  execution: "&4&lEXECUTION!"
+  no-crown: "&cThere is currently no Crowned player."
