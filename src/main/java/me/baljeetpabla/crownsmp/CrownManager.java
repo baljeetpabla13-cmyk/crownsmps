@@ -89,13 +89,13 @@ public final class CrownManager {
         bloodlustRegenerationAmplifier = plugin.getConfig().getInt("bloodlust.regeneration-amplifier", 1);
         bloodlustDurationTicks = Math.max(1L, (long) (plugin.getConfig().getDouble("bloodlust.duration-seconds", 5.0) * 20L));
 
-        soulReaperHitsRequired = Math.max(1, plugin.getConfig().getInt("soul-reaper.hits-required", 10));
-        soulReaperDurationMs = Math.max(100L, (long) (plugin.getConfig().getDouble("soul-reaper.duration-seconds", 5.0) * 1000L));
-        soulReaperCooldownMs = Math.max(0L, (long) (plugin.getConfig().getDouble("soul-reaper.cooldown-seconds", 25.0) * 1000L));
-        soulReaperStrengthAmplifier = plugin.getConfig().getInt("soul-reaper.strength-amplifier", 2);
-        soulReaperSpeedAmplifier = plugin.getConfig().getInt("soul-reaper.speed-amplifier", 2);
-        soulDrainCooldownMs = Math.max(0L, (long) (plugin.getConfig().getDouble("soul-drain.cooldown-seconds", 3.0) * 1000L));
-        soulDrainHearts = Math.max(0.0, plugin.getConfig().getDouble("soul-drain.hearts", 1.0));
+        soulReaperHitsRequired = Math.max(1, plugin.getConfig().getInt("dark-crown.soul-reaper.hits-required", 10));
+        soulReaperDurationMs = Math.max(100L, (long) (plugin.getConfig().getDouble("dark-crown.soul-reaper.duration-seconds", 5.0) * 1000L));
+        soulReaperCooldownMs = Math.max(0L, (long) (plugin.getConfig().getDouble("dark-crown.soul-reaper.cooldown-seconds", 25.0) * 1000L));
+        soulReaperStrengthAmplifier = plugin.getConfig().getInt("dark-crown.soul-reaper.strength-amplifier", 2);
+        soulReaperSpeedAmplifier = plugin.getConfig().getInt("dark-crown.soul-reaper.speed-amplifier", 2);
+        soulDrainCooldownMs = Math.max(0L, (long) (plugin.getConfig().getDouble("dark-crown.soul-drain.cooldown-seconds", 3.0) * 1000L));
+        soulDrainHearts = Math.max(0.0, plugin.getConfig().getDouble("dark-crown.soul-drain.hearts", 1.0));
 
         executionCooldownMs = Math.max(0L, (long) (plugin.getConfig().getDouble("execution.cooldown-seconds", 20.0) * 1000L));
         executionRange = Math.max(0.1, plugin.getConfig().getDouble("execution.range", 4.0));
