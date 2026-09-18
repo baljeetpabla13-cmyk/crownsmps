@@ -1,3 +1,5 @@
+dark-crowned-uuid: null
+
 # CrownSMP balancing configuration
 # Durations are in seconds unless noted.
 
@@ -7,6 +9,7 @@ crown:
   speed-amplifier: 1      # Speed II
   knockback-resistance: 1.0
 
+# Normal Crown abilities
 rage:
   hits-required: 5
   combo-timeout-seconds: 1.75
@@ -15,6 +18,19 @@ rage:
   strength-amplifier: 2   # Strength III
   speed-amplifier: 2      # Speed III while Rage is active
   resistance-amplifier: 2 # Resistance III while Rage is active
+
+dark-crown:
+  # Soul Reaper is the Dark Crown's main combat ability.
+  soul-reaper:
+    hits-required: 10
+    duration-seconds: 5
+    cooldown-seconds: 25
+    strength-amplifier: 2   # Strength III
+    speed-amplifier: 2      # Speed III
+  # Soul Drain steals health from the target and gives the same amount to the Dark Crown.
+  soul-drain:
+    cooldown-seconds: 3
+    hearts: 1.0
 
 bloodlust:
   regeneration-amplifier: 1 # Regeneration II
