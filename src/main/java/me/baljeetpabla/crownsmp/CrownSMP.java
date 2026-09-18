@@ -86,6 +86,7 @@ public final class CrownSMP extends JavaPlugin implements org.bukkit.command.Com
     }
 
     public void setCrown(Player player) {
+        if (isDarkCrowned(player)) removeDarkCrown();
         Player oldCrown = getCrownedPlayer();
         if (oldCrown != null && !oldCrown.getUniqueId().equals(player.getUniqueId())) {
             crownManager.removeCrownBuffs(oldCrown);
