@@ -26,11 +26,11 @@ public final class CrownListener implements Listener {
         if (!(event.getEntity() instanceof Player victim)) return;
         Player damager = getPlayerDamager(event.getDamager());
 
-        if (plugin.isCrowned(victim)) {
+        if (plugin.isCrowned(victim) || plugin.isDarkCrowned(victim)) {
             manager.onCrownedDamaged(victim);
         }
 
-        if (damager != null && plugin.isCrowned(damager) && victim != damager) {
+        if (damager != null && (plugin.isCrowned(damager) || plugin.isDarkCrowned(damager)) && victim != damager) {
             manager.onCrownedHit(damager, victim);
         }
     }
@@ -63,17 +63,27 @@ public final class CrownListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onCrownDeath(PlayerDeathEvent event) {
         Player dead = event.getEntity();
-        if (!plugin.isCrowned(dead)) return;
+        if (!plugin.isCrowned(dead) && !plugin.isDarkCrowned(dead)) return;
 
         Player killer = dead.getKiller();
-        manager.removeCrownItem(dead);
-        event.getDrops().removeIf(manager::isCrownItem);
+        boolean dark = plugin.isDarkCrowned(dead);
+        if (dark) manager.removeDarkCrownItem(dead);
+        else manager.removeCrownItem(dead);
+        event.getDrops().removeIf(item -> manager.isCrownItem(item) || manager.isDarkCrownItem(item));
 
         // The Crown transfers only when another player personally kills the Crowned player.
         if (killer != null && killer != dead) {
-            plugin.setCrown(killer);
-            plugin.send(dead, "crown-lost");
-            plugin.send(killer, "crown-won");
+            if (dark) {
+                plugin.setDarkCrown(killer);
+                plugin.send(dead, "dark-crown-lost");
+                plugin.send(killer, "dark-crown-won");
+            } else {
+                plugin.setCrown(killer);
+                plugin.send(dead, "crown-lost");
+                plugin.send(killer, "crown-won");
+            }
+        } else if (dark) {
+            plugin.removeDarkCrown();
         } else {
             plugin.removeCrown();
         }
@@ -85,6 +95,9 @@ public final class CrownListener implements Listener {
         if (plugin.isCrowned(player)) {
             manager.applyBaseBuffs(player);
             manager.updateCrownItem(player);
+        } else if (plugin.isDarkCrowned(player)) {
+            manager.applyBaseBuffs(player, true);
+            manager.updateDarkCrownItem(player);
         } else {
             manager.cleanUpMarkedPlayer(player);
         }
