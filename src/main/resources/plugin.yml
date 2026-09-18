@@ -8,7 +8,7 @@ description: A player-controlled raid boss Crown SMP plugin.
 commands:
   crown:
     description: Manage the Crown and Crown SMP systems.
-    usage: /crown <set|remove|give|info|reload|help>
+    usage: /crown <set|give|darkset|darkgive|remove|darkremove|info|reload|help>
     permission: crownsmp.admin
 permissions:
   crownsmp.admin:
