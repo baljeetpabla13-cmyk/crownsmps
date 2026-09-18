@@ -310,11 +310,11 @@ public final class CrownManager {
 
         if (!isSoulDrainOnCooldown(crown) && target.getHealth() > soulDrainHearts * 2.0) {
             double amount = soulDrainHearts * 2.0;
+            soulDrainCooldownUntil.put(uuid, System.currentTimeMillis() + soulDrainCooldownMs);
             target.damage(amount, crown);
             if (crown.isOnline() && !crown.isDead()) {
                 crown.setHealth(Math.min(maxHealth, crown.getHealth() + amount));
             }
-            soulDrainCooldownUntil.put(uuid, System.currentTimeMillis() + soulDrainCooldownMs);
             crown.getWorld().spawnParticle(Particle.SOUL, target.getLocation().add(0, 1.0, 0), 15, 0.3, 0.5, 0.3, 0.03);
             crown.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, crown.getLocation().add(0, 1.2, 0), 15, 0.3, 0.5, 0.3, 0.03);
             crown.getWorld().playSound(crown.getLocation(), Sound.BLOCK_SCULK_SHRIEKER_SHRIEK, 0.7f, 1.4f);
