@@ -22,12 +22,18 @@ public final class CrownManager {
 
     private final CrownSMP plugin;
     private final NamespacedKey crownItemKey;
+    private final NamespacedKey darkCrownItemKey;
     private final NamespacedKey crownBuffMarkerKey;
     private final Map<UUID, Integer> comboHits = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastHitAt = new ConcurrentHashMap<>();
     private final Map<UUID, Long> rageCooldownUntil = new ConcurrentHashMap<>();
     private final Map<UUID, Long> executionCooldownUntil = new ConcurrentHashMap<>();
     private final Map<UUID, Long> rageUntil = new ConcurrentHashMap<>();
+
+    private final Map<UUID, Integer> soulHits = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> soulReaperCooldownUntil = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> soulReaperUntil = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> soulDrainCooldownUntil = new ConcurrentHashMap<>();
 
     private double maxHealth;
     private int resistanceAmplifier;
@@ -45,6 +51,14 @@ public final class CrownManager {
     private int bloodlustRegenerationAmplifier;
     private long bloodlustDurationTicks;
 
+    private int soulReaperHitsRequired;
+    private long soulReaperDurationMs;
+    private long soulReaperCooldownMs;
+    private int soulReaperStrengthAmplifier;
+    private int soulReaperSpeedAmplifier;
+    private long soulDrainCooldownMs;
+    private double soulDrainHearts;
+
     private long executionCooldownMs;
     private double executionRange;
     private double executionHealthPercent;
@@ -53,6 +67,7 @@ public final class CrownManager {
     public CrownManager(CrownSMP plugin) {
         this.plugin = plugin;
         this.crownItemKey = new NamespacedKey(plugin, "crown_item");
+        this.darkCrownItemKey = new NamespacedKey(plugin, "dark_crown_item");
         this.crownBuffMarkerKey = new NamespacedKey(plugin, "crown_buffs");
         reloadValues();
     }
@@ -74,6 +89,14 @@ public final class CrownManager {
         bloodlustRegenerationAmplifier = plugin.getConfig().getInt("bloodlust.regeneration-amplifier", 1);
         bloodlustDurationTicks = Math.max(1L, (long) (plugin.getConfig().getDouble("bloodlust.duration-seconds", 5.0) * 20L));
 
+        soulReaperHitsRequired = Math.max(1, plugin.getConfig().getInt("soul-reaper.hits-required", 10));
+        soulReaperDurationMs = Math.max(100L, (long) (plugin.getConfig().getDouble("soul-reaper.duration-seconds", 5.0) * 1000L));
+        soulReaperCooldownMs = Math.max(0L, (long) (plugin.getConfig().getDouble("soul-reaper.cooldown-seconds", 25.0) * 1000L));
+        soulReaperStrengthAmplifier = plugin.getConfig().getInt("soul-reaper.strength-amplifier", 2);
+        soulReaperSpeedAmplifier = plugin.getConfig().getInt("soul-reaper.speed-amplifier", 2);
+        soulDrainCooldownMs = Math.max(0L, (long) (plugin.getConfig().getDouble("soul-drain.cooldown-seconds", 3.0) * 1000L));
+        soulDrainHearts = Math.max(0.0, plugin.getConfig().getDouble("soul-drain.hearts", 1.0));
+
         executionCooldownMs = Math.max(0L, (long) (plugin.getConfig().getDouble("execution.cooldown-seconds", 20.0) * 1000L));
         executionRange = Math.max(0.1, plugin.getConfig().getDouble("execution.range", 4.0));
         executionHealthPercent = Math.max(0.0, Math.min(1.0, plugin.getConfig().getDouble("execution.target-max-health-percent", 0.20)));
@@ -81,18 +104,18 @@ public final class CrownManager {
     }
 
     public void applyBaseBuffs(Player player) {
+        applyBaseBuffs(player, false);
+    }
+
+    public void applyBaseBuffs(Player player, boolean dark) {
         AttributeInstance health = player.getAttribute(Attribute.MAX_HEALTH);
         if (health != null) {
             health.setBaseValue(maxHealth);
-            if (player.getHealth() > maxHealth) {
-                player.setHealth(maxHealth);
-            }
+            if (player.getHealth() > maxHealth) player.setHealth(maxHealth);
         }
 
         AttributeInstance knockback = player.getAttribute(Attribute.KNOCKBACK_RESISTANCE);
-        if (knockback != null) {
-            knockback.setBaseValue(knockbackResistance);
-        }
+        if (knockback != null) knockback.setBaseValue(knockbackResistance);
 
         player.getPersistentDataContainer().set(crownBuffMarkerKey, PersistentDataType.BYTE, (byte) 1);
         player.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, Integer.MAX_VALUE, resistanceAmplifier, false, false, true), true);
@@ -103,30 +126,34 @@ public final class CrownManager {
     public void removeCrownBuffs(Player player) {
         removeAllCrownEffects(player);
         player.getPersistentDataContainer().remove(crownBuffMarkerKey);
-        comboHits.remove(player.getUniqueId());
-        lastHitAt.remove(player.getUniqueId());
-        rageUntil.remove(player.getUniqueId());
-        rageCooldownUntil.remove(player.getUniqueId());
-        executionCooldownUntil.remove(player.getUniqueId());
-
+        clearCombatState(player);
         AttributeInstance health = player.getAttribute(Attribute.MAX_HEALTH);
         if (health != null) {
             health.setBaseValue(20.0);
-            if (player.getHealth() > 20.0) {
-                player.setHealth(20.0);
-            }
+            if (player.getHealth() > 20.0) player.setHealth(20.0);
         }
-
         AttributeInstance knockback = player.getAttribute(Attribute.KNOCKBACK_RESISTANCE);
-        if (knockback != null) {
-            knockback.setBaseValue(0.0);
-        }
+        if (knockback != null) knockback.setBaseValue(0.0);
+    }
+
+    private void clearCombatState(Player player) {
+        UUID uuid = player.getUniqueId();
+        comboHits.remove(uuid);
+        lastHitAt.remove(uuid);
+        rageUntil.remove(uuid);
+        rageCooldownUntil.remove(uuid);
+        executionCooldownUntil.remove(uuid);
+        soulHits.remove(uuid);
+        soulReaperUntil.remove(uuid);
+        soulReaperCooldownUntil.remove(uuid);
+        soulDrainCooldownUntil.remove(uuid);
     }
 
     public void cleanUpMarkedPlayer(Player player) {
         if (!player.getPersistentDataContainer().has(crownBuffMarkerKey, PersistentDataType.BYTE)) return;
         removeCrownBuffs(player);
         removeCrownItem(player);
+        removeDarkCrownItem(player);
     }
 
     private void removeAllCrownEffects(Player player) {
@@ -138,103 +165,218 @@ public final class CrownManager {
     }
 
     public void giveCrownItem(Player player) {
-        removeCrownItem(player);
-        ItemStack crown = createCrownItem();
+        giveItem(player, createCrownItem());
+    }
+
+    public void giveDarkCrownItem(Player player) {
+        giveItem(player, createDarkCrownItem());
+    }
+
+    private void giveItem(Player player, ItemStack item) {
         EntityEquipment equipment = player.getEquipment();
         if (equipment != null && equipment.getHelmet() == null) {
-            equipment.setHelmet(crown);
+            equipment.setHelmet(item);
         } else {
-            player.getInventory().addItem(crown).values().forEach(item ->
-                    player.getWorld().dropItemNaturally(player.getLocation(), item));
+            player.getInventory().addItem(item).values().forEach(leftover ->
+                    player.getWorld().dropItemNaturally(player.getLocation(), leftover));
         }
-
         player.getWorld().spawnParticle(Particle.GLOW, player.getLocation().add(0, 2.0, 0), 20, 0.4, 0.2, 0.4, 0.02);
         player.getWorld().playSound(player.getLocation(), Sound.ITEM_GOAT_HORN_SOUND_0, 1.0f, 1.25f);
     }
 
     public ItemStack createCrownItem() {
-        ItemStack crown = new ItemStack(Material.GOLDEN_HELMET);
+        ItemStack crown = createProtectedHelmet(Material.GOLDEN_HELMET, "&6&lCrown");
         ItemMeta meta = crown.getItemMeta();
         if (meta != null) {
-            meta.setDisplayName(CrownSMP.color("&6&lCrown"));
             meta.getPersistentDataContainer().set(crownItemKey, PersistentDataType.BYTE, (byte) 1);
             crown.setItemMeta(meta);
         }
         return crown;
     }
 
+    public ItemStack createDarkCrownItem() {
+        ItemStack crown = createProtectedHelmet(Material.GOLDEN_HELMET, "&8&lDark Crown");
+        ItemMeta meta = crown.getItemMeta();
+        if (meta != null) {
+            meta.getPersistentDataContainer().set(darkCrownItemKey, PersistentDataType.BYTE, (byte) 1);
+            crown.setItemMeta(meta);
+        }
+        return crown;
+    }
+
+    private ItemStack createProtectedHelmet(Material material, String name) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName(CrownSMP.color(name));
+            meta.addEnchant(org.bukkit.enchantments.Enchantment.PROTECTION, 4, true);
+            meta.setUnbreakable(true);
+            meta.addAttributeModifier(Attribute.ARMOR,
+                    new org.bukkit.attribute.AttributeModifier(new UUID(0L, 1001L), "crown_armor", 1.0,
+                            org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER));
+            meta.addAttributeModifier(Attribute.ARMOR_TOUGHNESS,
+                    new org.bukkit.attribute.AttributeModifier(new UUID(0L, 1002L), "crown_toughness", 2.0,
+                            org.bukkit.attribute.AttributeModifier.Operation.ADD_NUMBER));
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
     public boolean isCrownItem(ItemStack item) {
+        return hasKey(item, crownItemKey);
+    }
+
+    public boolean isDarkCrownItem(ItemStack item) {
+        return hasKey(item, darkCrownItemKey);
+    }
+
+    private boolean hasKey(ItemStack item, NamespacedKey key) {
         if (item == null || item.getType() != Material.GOLDEN_HELMET || !item.hasItemMeta()) return false;
         ItemMeta meta = item.getItemMeta();
-        return meta != null && meta.getPersistentDataContainer().has(crownItemKey, PersistentDataType.BYTE);
+        return meta != null && meta.getPersistentDataContainer().has(key, PersistentDataType.BYTE);
     }
 
     public void updateCrownItem(Player player) {
+        updateItem(player, false);
+    }
+
+    public void updateDarkCrownItem(Player player) {
+        updateItem(player, true);
+    }
+
+    private void updateItem(Player player, boolean dark) {
         EntityEquipment equipment = player.getEquipment();
-        if (equipment != null && isCrownItem(equipment.getHelmet())) return;
-
+        boolean hasItem = dark ? isDarkCrownItem(equipment == null ? null : equipment.getHelmet()) : isCrownItem(equipment == null ? null : equipment.getHelmet());
+        if (hasItem) return;
         for (ItemStack item : player.getInventory().getContents()) {
-            if (isCrownItem(item)) return;
+            if (dark ? isDarkCrownItem(item) : isCrownItem(item)) return;
         }
-
-        giveCrownItem(player);
+        if (dark) giveDarkCrownItem(player);
+        else giveCrownItem(player);
     }
 
     public void removeCrownItem(Player player) {
-        EntityEquipment equipment = player.getEquipment();
-        if (equipment != null && isCrownItem(equipment.getHelmet())) {
-            equipment.setHelmet(null);
-        }
+        removeItem(player, false);
+    }
 
+    public void removeDarkCrownItem(Player player) {
+        removeItem(player, true);
+    }
+
+    private void removeItem(Player player, boolean dark) {
+        EntityEquipment equipment = player.getEquipment();
+        if (equipment != null) {
+            ItemStack helmet = equipment.getHelmet();
+            if (dark ? isDarkCrownItem(helmet) : isCrownItem(helmet)) equipment.setHelmet(null);
+        }
         ItemStack[] contents = player.getInventory().getContents();
         for (int slot = 0; slot < contents.length; slot++) {
-            if (isCrownItem(contents[slot])) {
+            if (dark ? isDarkCrownItem(contents[slot]) : isCrownItem(contents[slot])) {
                 player.getInventory().setItem(slot, null);
             }
         }
     }
 
     public void resetCombatState(Player player) {
-        UUID uuid = player.getUniqueId();
-        comboHits.remove(uuid);
-        lastHitAt.remove(uuid);
-        rageUntil.remove(uuid);
-        rageCooldownUntil.remove(uuid);
-        executionCooldownUntil.remove(uuid);
+        clearCombatState(player);
         player.removePotionEffect(PotionEffectType.STRENGTH);
     }
 
     public void onCrownedHit(Player crown, Player target) {
-        UUID uuid = crown.getUniqueId();
-        long now = System.currentTimeMillis();
-
-        Long previous = lastHitAt.get(uuid);
-        if (previous != null && now - previous > comboTimeoutMs) {
-            comboHits.put(uuid, 0);
+        if (plugin.isDarkCrowned(crown)) {
+            onDarkCrownHit(crown, target);
+            return;
         }
 
+        UUID uuid = crown.getUniqueId();
+        long now = System.currentTimeMillis();
+        Long previous = lastHitAt.get(uuid);
+        if (previous != null && now - previous > comboTimeoutMs) comboHits.put(uuid, 0);
         int hits = comboHits.getOrDefault(uuid, 0) + 1;
         comboHits.put(uuid, hits);
         lastHitAt.put(uuid, now);
 
-        if (hits >= rageHitsRequired && !isRageActive(crown) && !isRageOnCooldown(crown)) {
-            activateRage(crown);
+        if (hits >= rageHitsRequired && !isRageActive(crown) && !isRageOnCooldown(crown)) activateRage(crown);
+    }
+
+    public void onDarkCrownHit(Player crown, Player target) {
+        UUID uuid = crown.getUniqueId();
+        int hits = soulHits.getOrDefault(uuid, 0) + 1;
+        soulHits.put(uuid, hits);
+
+        if (hits >= soulReaperHitsRequired && !isSoulReaperActive(crown) && !isSoulReaperOnCooldown(crown)) {
+            activateSoulReaper(crown);
+        }
+
+        if (!isSoulDrainOnCooldown(crown) && target.getHealth() > soulDrainHearts * 2.0) {
+            double amount = soulDrainHearts * 2.0;
+            target.damage(amount, crown);
+            if (crown.isOnline() && !crown.isDead()) {
+                crown.setHealth(Math.min(maxHealth, crown.getHealth() + amount));
+            }
+            soulDrainCooldownUntil.put(uuid, System.currentTimeMillis() + soulDrainCooldownMs);
+            crown.getWorld().spawnParticle(Particle.SOUL, target.getLocation().add(0, 1.0, 0), 15, 0.3, 0.5, 0.3, 0.03);
+            crown.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, crown.getLocation().add(0, 1.2, 0), 15, 0.3, 0.5, 0.3, 0.03);
+            crown.getWorld().playSound(crown.getLocation(), Sound.BLOCK_SCULK_SHRIEKER_SHRIEK, 0.7f, 1.4f);
         }
     }
 
-    public void onCrownedDamaged(Player crown) {
-        resetCombo(crown);
+    public void activateSoulReaper(Player crown) {
+        UUID uuid = crown.getUniqueId();
+        long now = System.currentTimeMillis();
+        soulHits.put(uuid, 0);
+        soulReaperUntil.put(uuid, now + soulReaperDurationMs);
+        soulReaperCooldownUntil.put(uuid, now + soulReaperDurationMs + soulReaperCooldownMs);
+
+        int ticks = (int) Math.min(Integer.MAX_VALUE, Math.max(1L, soulReaperDurationMs / 50L));
+        crown.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, ticks, soulReaperStrengthAmplifier, false, true, true), true);
+        crown.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, ticks, soulReaperSpeedAmplifier, false, true, true), true);
+        crown.getWorld().spawnParticle(Particle.SOUL_FIRE_FLAME, crown.getLocation().add(0, 1.0, 0), 50, 0.8, 1.0, 0.8, 0.04);
+        crown.getWorld().playSound(crown.getLocation(), Sound.ENTITY_WITHER_SPAWN, 0.6f, 1.4f);
+        plugin.send(crown, "soul-reaper-active");
+
+        plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            if (plugin.isDarkCrowned(crown)) {
+                removeSoulReaperEffects(crown);
+            }
+        }, ticks);
     }
 
-    private void resetCombo(Player crown) {
-        comboHits.put(crown.getUniqueId(), 0);
-        lastHitAt.remove(crown.getUniqueId());
+    private void removeSoulReaperEffects(Player crown) {
+        if (!isSoulReaperActive(crown)) return;
+        soulReaperUntil.remove(crown.getUniqueId());
+        crown.removePotionEffect(PotionEffectType.STRENGTH);
+        applyBaseBuffs(crown, true);
+    }
+
+    public boolean isSoulReaperActive(Player player) {
+        Long until = soulReaperUntil.get(player.getUniqueId());
+        return until != null && until > System.currentTimeMillis();
+    }
+
+    private boolean isSoulReaperOnCooldown(Player player) {
+        Long until = soulReaperCooldownUntil.get(player.getUniqueId());
+        return until != null && until > System.currentTimeMillis();
+    }
+
+    private boolean isSoulDrainOnCooldown(Player player) {
+        Long until = soulDrainCooldownUntil.get(player.getUniqueId());
+        return until != null && until > System.currentTimeMillis();
+    }
+
+    public boolean isRageActive(Player player) {
+        Long until = rageUntil.get(player.getUniqueId());
+        return until != null && until > System.currentTimeMillis();
+    }
+
+    private boolean isRageOnCooldown(Player player) {
+        Long until = rageCooldownUntil.get(player.getUniqueId());
+        return until != null && until > System.currentTimeMillis();
     }
 
     public void activateRage(Player crown) {
         UUID uuid = crown.getUniqueId();
         long now = System.currentTimeMillis();
-
         comboHits.put(uuid, 0);
         lastHitAt.put(uuid, now);
         rageUntil.put(uuid, now + rageDurationMs);
@@ -251,9 +393,7 @@ public final class CrownManager {
         plugin.send(crown, "rage-active");
 
         plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
-            if (plugin.isCrowned(crown)) {
-                removeRageEffects(crown);
-            }
+            if (plugin.isCrowned(crown) && !plugin.isDarkCrowned(crown)) removeRageEffects(crown);
         }, ticks);
     }
 
@@ -264,18 +404,8 @@ public final class CrownManager {
         applyBaseBuffs(crown);
     }
 
-    public boolean isRageActive(Player player) {
-        Long until = rageUntil.get(player.getUniqueId());
-        return until != null && until > System.currentTimeMillis();
-    }
-
-    private boolean isRageOnCooldown(Player player) {
-        Long until = rageCooldownUntil.get(player.getUniqueId());
-        return until != null && until > System.currentTimeMillis();
-    }
-
     public boolean tryExecution(Player crown, Player target) {
-        if (!plugin.isCrowned(crown) || target == crown || !crown.isSneaking()) return false;
+        if ((!plugin.isCrowned(crown) && !plugin.isDarkCrowned(crown)) || target == crown || !crown.isSneaking()) return false;
         if (!crown.getWorld().equals(target.getWorld())) return false;
         if (crown.getLocation().distanceSquared(target.getLocation()) > executionRange * executionRange) return false;
         if (target.isDead() || target.getHealth() <= 0) return false;
@@ -301,11 +431,10 @@ public final class CrownManager {
     }
 
     public void onKill(Player crown) {
+        if (plugin.isDarkCrowned(crown)) return;
         crown.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION,
                 (int) Math.min(Integer.MAX_VALUE, bloodlustDurationTicks),
-                bloodlustRegenerationAmplifier,
-                false, true, true), true);
-
+                bloodlustRegenerationAmplifier, false, true, true), true);
         crown.getWorld().spawnParticle(Particle.HEART, crown.getLocation().add(0, 1.2, 0), 10, 0.4, 0.6, 0.4, 0.05);
         crown.getWorld().playSound(crown.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.5f);
         plugin.send(crown, "bloodlust");
