@@ -1,64 +1,18 @@
-dark-crowned-uuid: null
+# Two equal-power crowns. Base effects are identical.
 
-# CrownSMP balancing configuration
-# Durations are in seconds unless noted.
+holders:
+  light: null
+  dark: null
 
-crown:
-  max-health: 40.0
-  resistance-amplifier: 1 # Resistance II
-  speed-amplifier: 1      # Speed II
-  knockback-resistance: 1.0
-
-# Normal Crown abilities
-rage:
-  hits-required: 5
-  combo-timeout-seconds: 1.75
-  duration-seconds: 8
-  cooldown-seconds: 12
-  strength-amplifier: 2   # Strength III
-  speed-amplifier: 2      # Speed III while Rage is active
-  resistance-amplifier: 2 # Resistance III while Rage is active
+base:
+  protection-level: 10
+  strength-level: 3
+  speed-level: 2
+  resistance-level: 2
 
 dark-crown:
-  # Soul Reaper is the Dark Crown's main combat ability.
-  soul-reaper:
-    hits-required: 10
-    duration-seconds: 5
-    cooldown-seconds: 25
-    strength-amplifier: 2   # Strength III
-    speed-amplifier: 2      # Speed III
-  # Soul Drain steals health from the target and gives the same amount to the Dark Crown.
-  soul-drain:
-    cooldown-seconds: 3
-    hearts: 1.0
+  combo-hits: 5
+  combo-timeout-ms: 1750
 
-bloodlust:
-  regeneration-amplifier: 1 # Regeneration II
-  duration-seconds: 5
-
-execution:
-  cooldown-seconds: 20
-  range: 4.0
-  target-max-health-percent: 0.20
-  damage: 10.0
-
-messages:
-  prefix: "&6&lCROWN &8» &r"
-  crown-set: "&a%player% is now the Crowned player."
-  crown-removed: "&eThe Crown has been removed from %player%."
-  crown-given: "&aYou are now the Crowned player."
-  dark-crown-given: "&8You are now the Dark Crowned player."
-  crown-lost: "&cYou lost the Crown!"
-  crown-won: "&6You claimed the Crown!"
-  dark-crown-set: "&8%player% is now the Dark Crowned player."
-  dark-crown-removed: "&7The Dark Crown has been removed from %player%."
-  dark-crown-lost: "&8You lost the Dark Crown!"
-  dark-crown-won: "&5You claimed the Dark Crown!"
-  no-dark-crown: "&7There is currently no Dark Crowned player."
-  rage-ready: "&6&lCROWN RAGE &r&7is ready!"
-  rage-active: "&c&lCROWN RAGE &r&7activated!"
-  bloodlust: "&4&lBLOODLUST &r&7activated!"
-  soul-reaper-active: "&8&lSOUL REAPER &r&7activated!"
-  execution-ready: "&e&lEXECUTION &r&7available on low-health targets."
-  execution: "&4&lEXECUTION!"
-  no-crown: "&cThere is currently no Crowned player."
+# Light Crown ult requirement/effect and the exact Dark Crown ult effect
+# remain open until their final mechanics are chosen.
