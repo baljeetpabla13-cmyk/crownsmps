@@ -3,14 +3,13 @@ version: ${version}
 main: me.baljeetpabla.crownsmp.CrownSMP
 api-version: '1.21.11'
 author: BaljeetPabla13
-website: https://github.com/baljeetpabla13-cmyk/crownsmps
-description: A player-controlled raid boss Crown SMP plugin.
+description: Two legendary PvP crowns with equal base power and unique ultimates.
 commands:
   crown:
-    description: Manage the Crown and Crown SMP systems.
-    usage: /crown <set|give|darkset|darkgive|remove|darkremove|info|reload|help>
+    description: Manage the Light and Dark Crowns.
+    usage: /crown give <light|dark> <player>
     permission: crownsmp.admin
 permissions:
   crownsmp.admin:
-    description: Allows administration of CrownSMP.
+    description: Manage CrownSMP crowns.
     default: op
